@@ -3,12 +3,12 @@
     'name': 'BRIN Index - Mail',
     'version': '18.0.1.0.0',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for messaging tables',
+    'summary': 'BRIN indexes for messaging tables using Odoo 18 _sql_indexes',
     'description': """
-BRIN Indexes for Messaging
-==========================
+BRIN Indexes for Messaging (Odoo 18)
+====================================
 
-Creates BRIN indexes on:
+Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
 - mail_message (date, create_date) - Often the LARGEST table!
 - mail_tracking_value (create_date)
 - mail_notification (create_date)

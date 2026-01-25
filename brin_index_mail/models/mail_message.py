@@ -1,71 +1,56 @@
 # -*- coding: utf-8 -*-
-import logging
+"""
+BRIN Index definitions for Mail using Odoo 18 _sql_indexes.
+
+mail_message is often the largest table in Odoo databases!
+"""
 from odoo import models
-
-_logger = logging.getLogger(__name__)
-
-
-def create_brin_index(cr, table, column, pages_per_range=32):
-    """Create BRIN index if it doesn't exist."""
-    index_name = f"brin_{table}_{column}"
-    cr.execute("""
-        SELECT 1 FROM pg_indexes 
-        WHERE schemaname = 'public' AND indexname = %s
-    """, (index_name,))
-    
-    if not cr.fetchone():
-        _logger.info("Creating BRIN index %s on %s(%s)", index_name, table, column)
-        try:
-            cr.execute(f"""
-                CREATE INDEX {index_name} 
-                ON {table} USING brin({column}) 
-                WITH (pages_per_range = {pages_per_range})
-            """)
-            _logger.info("BRIN index %s created successfully", index_name)
-        except Exception as e:
-            _logger.warning("Failed to create BRIN index %s: %s", index_name, e)
 
 
 class MailMessage(models.Model):
+    """BRIN indexes for mail_message - often the LARGEST table in Odoo!"""
     _inherit = 'mail.message'
 
-    def init(self):
-        super().init()
-        # CRITICAL: mail_message is often the largest table in Odoo!
-        # Can grow to 10-200M+ rows in production
-        create_brin_index(self.env.cr, 'mail_message', 'date', 32)
-        create_brin_index(self.env.cr, 'mail_message', 'create_date', 32)
+    _sql_indexes = [
+        # CRITICAL: Can grow to 10-200M+ rows in production
+        models.Index('date', type='brin'),
+        models.Index('create_date', type='brin'),
+    ]
 
 
 class MailTrackingValue(models.Model):
+    """BRIN index for mail_tracking_value - grows fast with tracked fields."""
     _inherit = 'mail.tracking.value'
 
-    def init(self):
-        super().init()
-        # Grows very fast - every tracked field change creates a record
-        create_brin_index(self.env.cr, 'mail_tracking_value', 'create_date', 32)
+    _sql_indexes = [
+        # Every tracked field change creates a record here
+        models.Index('create_date', type='brin'),
+    ]
 
 
 class MailNotification(models.Model):
+    """BRIN index for mail_notification."""
     _inherit = 'mail.notification'
 
-    def init(self):
-        super().init()
-        create_brin_index(self.env.cr, 'mail_notification', 'create_date', 32)
+    _sql_indexes = [
+        models.Index('create_date', type='brin'),
+    ]
 
 
 class BusBus(models.Model):
+    """BRIN index for bus_bus - high write volume."""
     _inherit = 'bus.bus'
 
-    def init(self):
-        super().init()
+    _sql_indexes = [
         # High write volume, should be cleaned regularly
-        create_brin_index(self.env.cr, 'bus_bus', 'create_date', 16)
+        models.Index('create_date', type='brin'),
+    ]
 
 
 class IrAttachment(models.Model):
+    """BRIN index for ir_attachment."""
     _inherit = 'ir.attachment'
 
-    def init(self):
-        super().init()
-        create_brin_index(self.env.cr, 'ir_attachment', 'create_date', 64)
+    _sql_indexes = [
+        models.Index('create_date', type='brin'),
+    ]

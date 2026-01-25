@@ -1,158 +1,144 @@
 # BRIN Index Modules for Odoo 18
 
-Колекция от модули, които създават BRIN индекси чрез стандартния Odoo механизъм за наследяване на модели.
+Колекция от модули, които създават BRIN индекси използвайки **стандартната Odoo 18 `_sql_indexes` функционалност**.
 
-## Архитектура
+## Как работи
 
-Всеки модул:
-1. Наследява съответните Odoo модели
-2. Override-ва `init()` метода
-3. Създава BRIN индекси при инсталация/update
+В Odoo 18 има нов механизъм за дефиниране на индекси директно в модела чрез атрибута `_sql_indexes`:
 
+```python
+from odoo import models
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    _sql_indexes = [
+        models.Index('date', type='brin'),
+        models.Index('create_date', type='brin'),
+    ]
 ```
-brin_index_accounting/    → account_move, account_move_line
-brin_index_stock/         → stock_move, stock_quant, stock_valuation_layer  
-brin_index_mail/          → mail_message, mail_tracking_value
-brin_index_mrp/           → mrp_production, mrp_workorder
-brin_index_pos/           → pos_order, pos_order_line
-brin_index_hr/            → hr_attendance, hr_payslip
-brin_index_sale/          → sale_order, crm_lead
-brin_index_purchase/      → purchase_order
-brin_index_project/       → project_task
-```
+
+Odoo автоматично:
+1. Генерира уникално име за индекса
+2. Създава индекса при инсталация/update
+3. Управлява жизнения цикъл на индекса
+
+## Модули
+
+| Модул | Зависимост | Таблици |
+|-------|------------|---------|
+| `brin_index_accounting` | account | account_move_line, account_move, account_payment |
+| `brin_index_stock` | stock | stock_move_line, stock_quant, stock_valuation_layer |
+| `brin_index_mail` | mail | mail_message, mail_tracking_value, bus_bus |
+| `brin_index_mrp` | mrp | mrp_production, mrp_workorder |
+| `brin_index_pos` | point_of_sale | pos_order, pos_order_line |
+| `brin_index_sale` | sale | sale_order, sale_order_line |
+| `brin_index_crm` | crm | crm_lead |
+| `brin_index_purchase` | purchase | purchase_order, purchase_order_line |
+| `brin_index_project` | project | project_task |
+| `brin_index_timesheet` | hr_timesheet | account_analytic_line |
+| `brin_index_hr` | hr | (base module) |
+| `brin_index_hr_attendance` | hr_attendance | hr_attendance |
+| `brin_index_hr_holidays` | hr_holidays | hr_leave |
+| `brin_index_hr_payroll` | hr_payroll | hr_payslip, hr_payslip_line |
+| `brin_index_hr_work_entry` | hr_work_entry | hr_work_entry |
 
 ## Инсталация
 
 1. Копирайте модулите в addons директорията
 2. Update Apps List
-3. Модулите се инсталират **автоматично** с `auto_install=True`
-
-При инсталиране на `account` → автоматично се инсталира `brin_index_accounting`
-
-## Как работи
-
-```python
-class AccountMoveLine(models.Model):
-    _inherit = 'account.move.line'
-
-    def init(self):
-        super().init()
-        # BRIN индексът се създава при инсталация/update
-        create_brin_index(self.env.cr, 'account_move_line', 'date', 32)
-```
+3. Модулите се инсталират **автоматично** (`auto_install=True`)
 
 ## Създадени индекси
 
 ### brin_index_accounting
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| account_move_line | date | 32 |
-| account_move_line | create_date | 32 |
-| account_move | date | 64 |
-| account_move | invoice_date | 64 |
-| account_partial_reconcile | create_date | 64 |
-| account_bank_statement_line | date | 64 |
-| account_payment | date | 64 |
+```python
+# account_move_line
+models.Index('date', type='brin')
+models.Index('create_date', type='brin')
+
+# account_move  
+models.Index('date', type='brin')
+models.Index('invoice_date', type='brin')
+models.Index('create_date', type='brin')
+
+# account_partial_reconcile
+models.Index('create_date', type='brin')
+
+# account_bank_statement_line
+models.Index('date', type='brin')
+
+# account_payment
+models.Index('date', type='brin')
+```
 
 ### brin_index_stock
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| stock_move_line | date | 32 |
-| stock_move_line | create_date | 32 |
-| stock_move | date | 32 |
-| stock_quant | in_date | 64 |
-| stock_lot | expiration_date | 64 |
-| stock_picking | scheduled_date | 64 |
-| stock_picking | date_done | 64 |
-| stock_valuation_layer | create_date | 32 |
+```python
+# stock_move_line
+models.Index('date', type='brin')
+models.Index('create_date', type='brin')
+
+# stock_move
+models.Index('date', type='brin')
+
+# stock_quant (FIFO/FEFO)
+models.Index('in_date', type='brin')
+
+# stock_lot (FEFO)
+models.Index('expiration_date', type='brin')
+
+# stock_picking
+models.Index('scheduled_date', type='brin')
+models.Index('date_done', type='brin')
+
+# stock_valuation_layer
+models.Index('create_date', type='brin')
+```
 
 ### brin_index_mail
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| mail_message | date | 32 |
-| mail_message | create_date | 32 |
-| mail_tracking_value | create_date | 32 |
-| mail_notification | create_date | 32 |
-| bus_bus | create_date | 16 |
-| ir_attachment | create_date | 64 |
+```python
+# mail_message (often the LARGEST table!)
+models.Index('date', type='brin')
+models.Index('create_date', type='brin')
 
-### brin_index_mrp
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| mrp_production | date_start | 64 |
-| mrp_production | date_finished | 64 |
-| mrp_workorder | date_start | 64 |
-| mrp_workorder | date_finished | 64 |
-| mrp_workcenter_productivity | date_start | 32 |
-| mrp_workcenter_productivity | date_end | 32 |
+# mail_tracking_value
+models.Index('create_date', type='brin')
 
-### brin_index_pos
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| pos_order | date_order | 64 |
-| pos_order_line | create_date | 64 |
-| pos_payment | create_date | 64 |
-| pos_session | start_at | 128 |
+# mail_notification
+models.Index('create_date', type='brin')
 
-### brin_index_sale
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| sale_order | date_order | 64 |
-| sale_order_line | create_date | 64 |
-| crm_lead | create_date | 64 |
-| crm_lead | date_deadline | 64 |
-| crm_lead | date_closed | 64 |
+# bus_bus
+models.Index('create_date', type='brin')
 
-### brin_index_purchase
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| purchase_order | date_order | 64 |
-| purchase_order | date_approve | 64 |
-| purchase_order_line | date_planned | 64 |
-
-### brin_index_project
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| project_task | date_deadline | 64 |
-| project_task | date_end | 64 |
-| account_analytic_line | date | 32 |
-
-### brin_index_hr
-| Таблица | Колона | pages_per_range |
-|---------|--------|-----------------|
-| hr_attendance | check_in | 64 |
-| hr_attendance | check_out | 64 |
-| hr_leave | date_from | 64 |
-| hr_payslip | date_from | 64 |
-| hr_payslip_line | create_date | 32 |
-| hr_work_entry | date_start | 32 |
+# ir_attachment
+models.Index('create_date', type='brin')
+```
 
 ## Проверка на индекси
 
 ```sql
 -- Списък на BRIN индекси
-SELECT indexname, tablename, indexdef 
+SELECT indexname, tablename 
 FROM pg_indexes 
-WHERE indexname LIKE 'brin_%'
+WHERE indexdef LIKE '%USING brin%'
 ORDER BY tablename;
 
 -- Размер на индексите
 SELECT indexname, pg_size_pretty(pg_relation_size(indexname::regclass))
 FROM pg_indexes 
-WHERE indexname LIKE 'brin_%';
+WHERE indexdef LIKE '%USING brin%';
 ```
 
-## REINDEX
+## Предимства на Odoo 18 _sql_indexes
 
-След масови операции с backdated записи:
-
-```sql
-REINDEX INDEX CONCURRENTLY brin_account_move_line_date;
-```
+1. **Декларативен подход** - индексите се дефинират в модела
+2. **Автоматично управление** - Odoo управлява създаване/изтриване
+3. **Merge при наследяване** - индексите се добавят към базовите
+4. **Консистентност** - използва стандартния Odoo механизъм
 
 ## Съвместимост
 
-- Odoo: 17.0, 18.0
+- Odoo: **18.0** (изисква новата _sql_indexes функционалност)
 - PostgreSQL: 9.5+
 
 ## Лиценз

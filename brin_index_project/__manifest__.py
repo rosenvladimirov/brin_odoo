@@ -3,14 +3,13 @@
     'name': 'BRIN Index - Project',
     'version': '18.0.1.0.0',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for project management tables',
+    'summary': 'BRIN indexes for project tables using Odoo 18 _sql_indexes',
     'description': """
-BRIN Indexes for Project Management
-===================================
+BRIN Indexes for Project Management (Odoo 18)
+=============================================
 
-Creates BRIN indexes on:
+Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
 - project_task (date_deadline, date_end, create_date)
-- account_analytic_line (date) - if timesheet is installed
 
 Essential for task tracking and project reporting.
     """,
