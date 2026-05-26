@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Weekly cron: run pg_partman maintenance to pre-create future partitions -->
+    <record id="cron_pg_partman_maintenance" model="ir.cron">
+        <field name="name">PostgreSQL Partman Maintenance</field>
+        <field name="model_id" ref="model_pg_partition_manager"/>
+        <field name="state">code</field>
+        <field name="code">model._run_maintenance()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">weeks</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+    </record>
+</odoo>

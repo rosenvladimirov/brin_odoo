@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="partition_backup_wizard_form" model="ir.ui.view">
+        <field name="name">partition.backup.wizard.form</field>
+        <field name="model">partition.backup.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Backup Partition">
+                <group>
+                    <group string="Partition">
+                        <field name="partition_name"/>
+                        <field name="parent_table"/>
+                        <field name="partition_range"/>
+                        <field name="live_rows"/>
+                        <field name="total_size"/>
+                    </group>
+                    <group string="Backup">
+                        <field name="output_dir"/>
+                        <field name="result_path" attrs="{'invisible': [('state','=','draft')]}"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_dump"
+                            string="Run pg_dump"
+                            type="object"
+                            class="btn-primary"
+                            attrs="{'invisible': [('state','=','done')]}"/>
+                    <button name="action_run_maintenance"
+                            string="Run Maintenance (create next partition)"
+                            type="object"
+                            class="btn-secondary"/>
+                    <button special="cancel" string="Close"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_partition_backup_wizard" model="ir.actions.act_window">
+        <field name="name">Backup Partition</field>
+        <field name="res_model">partition.backup.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

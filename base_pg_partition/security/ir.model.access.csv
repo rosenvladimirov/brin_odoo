@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_partition_manager,pg.partition.manager,model_pg_partition_manager,base.group_system,1,1,1,1
+access_partition_backup_wizard,partition.backup.wizard,model_partition_backup_wizard,base.group_system,1,1,1,1
