@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>brin_odoo — Odoo 18.0</title>
+<meta name="description" content="стандартната Odoo 18 `_sql_indexes` функционалност"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 3'><rect width='5' height='3' fill='%23ffffff'/><rect width='5' height='1' y='1' fill='%2300966E'/><rect width='5' height='1' y='2' fill='%23D62612'/></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#fff;--bg2:#F5F8FD;--card:#fff;--ink:#2B3A55;--soft:#5C6E8E;--faint:#90A0BD;
+ --blue:#5E86CE;--blue-deep:#3F62A8;--blue-soft:#DCE7F8;--blue-wash:#EEF4FC;--rule:#D6E2F1;--rule2:#E6EEF9;
+ --sh:0 20px 56px rgba(108,148,214,.20);--sh-s:0 10px 30px rgba(108,148,214,.14);
+ --disp:'Spectral',Georgia,serif;--ui:'Golos Text',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15.5px;line-height:1.65;
+ background-image:radial-gradient(1000px 440px at 84% -12%,rgba(108,148,214,.06),transparent 62%),
+  linear-gradient(rgba(94,134,206,.016) 1px,transparent 1px),linear-gradient(90deg,rgba(94,134,206,.016) 1px,transparent 1px);
+ background-size:auto,56px 56px,56px 56px}
+a{color:var(--blue-deep);text-decoration:none}.mono{font-family:var(--mono)}
+header{position:sticky;top:0;z-index:9;background:rgba(238,244,252,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
+.bar{display:flex;align-items:center;gap:18px;max-width:1180px;margin:0 auto;padding:14px 26px}
+.brand{font-family:var(--mono);font-weight:700}.brand b{color:var(--blue-deep)}
+.bar .sp{margin-left:auto}
+.gh{font-family:var(--mono);font-size:12px;border:1px solid var(--rule);background:var(--card);padding:8px 14px;border-radius:10px}
+.gh:hover{border-color:var(--blue)}
+.hero{max-width:1180px;margin:0 auto;padding:40px 26px 18px}
+.kick{font-family:var(--mono);font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--blue-deep);display:flex;align-items:center;gap:11px;margin-bottom:12px}
+.kick::before{content:"";width:32px;height:2px;background:var(--blue)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(1.8rem,3.4vw,2.7rem);line-height:1.08;letter-spacing:-.012em}
+.hero .tag{color:var(--soft);font-size:clamp(1rem,1.2vw,1.12rem);max-width:70ch;margin-top:12px}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.cs{background:var(--card);border:1px solid var(--rule);padding:10px 16px;box-shadow:var(--sh-s);border-radius:2px}
+.cs b{font-family:var(--disp);font-weight:700;font-size:1.25rem;color:var(--blue-deep);display:block;line-height:1.05}
+.cs span{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.wrap{max-width:1180px;margin:34px auto 0;padding:0 26px 80px}
+.sec-lbl{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin:38px 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.mc{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:16px 18px;box-shadow:var(--sh-s);transition:.16s}
+.mc:hover{border-color:var(--blue);box-shadow:var(--sh)}
+.mc-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mc-slug{font-size:12px;color:var(--blue-deep);font-weight:700}
+.mc-v{margin-left:auto;font-size:10.5px;color:var(--faint)}
+.mc strong{display:block;font-size:14.5px;margin-bottom:4px}
+.mc p{color:var(--soft);font-size:13px;line-height:1.5}
+.reader{background:var(--card);border:1px solid var(--rule);border-radius:14px;box-shadow:var(--sh);margin-top:18px;padding:34px 44px 56px}
+.doc{font-size:15.5px;line-height:1.72}
+.doc h1,.doc h2,.doc h3,.doc h4{font-family:var(--disp);font-weight:700;line-height:1.2;margin:1.6em 0 .55em;letter-spacing:-.01em}
+.doc h1{font-size:1.9rem;margin-top:.1em}
+.doc h2{font-size:1.45rem;padding-bottom:.26em;border-bottom:1px solid var(--rule2)}
+.doc h3{font-size:1.18rem;color:var(--blue-deep)}
+.doc p{margin:.8em 0}.doc ul,.doc ol{margin:.7em 0 .9em 1.4em}.doc li{margin:.3em 0}
+.doc a{border-bottom:1px solid var(--blue-soft)}
+.doc code{font-family:var(--mono);font-size:.86em;background:var(--blue-wash);padding:.14em .42em;border-radius:6px;color:var(--blue-deep)}
+.doc pre{background:#F4F8FD;border:1px solid var(--rule);border-radius:12px;padding:18px 20px;overflow:auto}
+.doc pre code{background:none;padding:0;color:var(--ink)}
+.doc table{border-collapse:collapse;margin:1em 0;font-size:14px;width:100%}
+.doc th,.doc td{border:1px solid var(--rule);padding:8px 12px;text-align:left}
+.doc th{background:var(--blue-wash);color:var(--blue-deep)}
+.doc img{max-width:100%;border-radius:8px}
+footer{max-width:1180px;margin:0 auto;padding:30px 26px 60px;color:var(--faint);font-family:var(--mono);font-size:12px}
+@media(max-width:640px){.reader{padding:24px 22px}}
+</style>
+</head>
+<body>
+<header><div class="bar">
+ <span class="brand"><b>brin_odoo</b></span>
+ <span class="sp"></span>
+ <a class="gh" href="https://github.com/rosenvladimirov/brin_odoo">GitHub ↗</a>
+</div></header>
+
+<section class="hero">
+ <div class="kick">Odoo 18.0 · LGPL-3</div>
+ <h1>brin_odoo</h1>
+ <p class="tag">стандартната Odoo 18 `_sql_indexes` функционалност</p>
+ <div class="chips"><div class="cs"><b>15</b><span>modules</span></div><div class="cs"><b>18.0</b><span>Odoo</span></div><div class="cs"><b>LGPL-3</b><span>license</span></div></div>
+</section>
+
+<div class="wrap">
+ <div class="sec-lbl">15 modules</div>
+ <div class="grid"><div class="mc"><div class="mc-h"><span class="mc-slug mono">base_pg_partition</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>PostgreSQL Table Partitioning</strong><p>Declarative PostgreSQL partitioning for large Odoo tables using pg_partman</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_accounting</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Accounting</strong><p>BRIN indexes for accounting tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_crm</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - CRM</strong><p>BRIN indexes for CRM tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_hr_attendance</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - HR Attendance</strong><p>BRIN indexes for attendance tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_hr_holidays</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - HR Holidays</strong><p>BRIN indexes for leave tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_hr_payroll</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - HR Payroll</strong><p>BRIN indexes for payroll tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_hr_work_entry</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - HR Work Entry</strong><p>BRIN indexes for work entry tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_mail</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Mail</strong><p>BRIN indexes for messaging tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_mrp</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Manufacturing</strong><p>BRIN indexes for manufacturing tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_pos</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Point of Sale</strong><p>BRIN indexes for POS tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_project</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Project</strong><p>BRIN indexes for project tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_purchase</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Purchase</strong><p>BRIN indexes for purchasing tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_sale</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Sales</strong><p>BRIN indexes for sales tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_stock</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Stock</strong><p>BRIN indexes for inventory tables using Odoo 18 _sql_indexes</p></div><div class="mc"><div class="mc-h"><span class="mc-slug mono">brin_index_timesheet</span><span class="mc-v mono">18.0.1.0.0</span></div><strong>BRIN Index - Timesheet</strong><p>BRIN indexes for timesheet/analytic lines using Odoo 18 _sql_indexes</p></div></div>
+ <div class="sec-lbl">Documentation</div>
+ <div class="reader"><div class="doc"><p>Колекция от модули, които създават BRIN индекси използвайки <strong>стандартната Odoo 18 <code>_sql_indexes</code> функционалност</strong>.</p>
+<h2 id="_1">Как работи</h2>
+<p>В Odoo 18 има нов механизъм за дефиниране на индекси директно в модела чрез атрибута <code>_sql_indexes</code>:</p>
+<pre><code class="language-python">from odoo import models
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    _sql_indexes = [
+        models.Index('date', type='brin'),
+        models.Index('create_date', type='brin'),
+    ]
+</code></pre>
+<p>Odoo автоматично:
+1. Генерира уникално име за индекса
+2. Създава индекса при инсталация/update
+3. Управлява жизнения цикъл на индекса</p>
+<h2 id="_2">Модули</h2>
+<table>
+<thead>
+<tr>
+<th>Модул</th>
+<th>Зависимост</th>
+<th>Таблици</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brin_index_accounting</code></td>
+<td>account</td>
+<td>account_move_line, account_move, account_payment</td>
+</tr>
+<tr>
+<td><code>brin_index_stock</code></td>
+<td>stock</td>
+<td>stock_move_line, stock_quant, stock_valuation_layer</td>
+</tr>
+<tr>
+<td><code>brin_index_mail</code></td>
+<td>mail</td>
+<td>mail_message, mail_tracking_value, bus_bus</td>
+</tr>
+<tr>
+<td><code>brin_index_mrp</code></td>
+<td>mrp</td>
+<td>mrp_production, mrp_workorder</td>
+</tr>
+<tr>
+<td><code>brin_index_pos</code></td>
+<td>point_of_sale</td>
+<td>pos_order, pos_order_line</td>
+</tr>
+<tr>
+<td><code>brin_index_sale</code></td>
+<td>sale</td>
+<td>sale_order, sale_order_line</td>
+</tr>
+<tr>
+<td><code>brin_index_crm</code></td>
+<td>crm</td>
+<td>crm_lead</td>
+</tr>
+<tr>
+<td><code>brin_index_purchase</code></td>
+<td>purchase</td>
+<td>purchase_order, purchase_order_line</td>
+</tr>
+<tr>
+<td><code>brin_index_project</code></td>
+<td>project</td>
+<td>project_task</td>
+</tr>
+<tr>
+<td><code>brin_index_timesheet</code></td>
+<td>hr_timesheet</td>
+<td>account_analytic_line</td>
+</tr>
+<tr>
+<td><code>brin_index_hr</code></td>
+<td>hr</td>
+<td>(base module)</td>
+</tr>
+<tr>
+<td><code>brin_index_hr_attendance</code></td>
+<td>hr_attendance</td>
+<td>hr_attendance</td>
+</tr>
+<tr>
+<td><code>brin_index_hr_holidays</code></td>
+<td>hr_holidays</td>
+<td>hr_leave</td>
+</tr>
+<tr>
+<td><code>brin_index_hr_payroll</code></td>
+<td>hr_payroll</td>
+<td>hr_payslip, hr_payslip_line</td>
+</tr>
+<tr>
+<td><code>brin_index_hr_work_entry</code></td>
+<td>hr_work_entry</td>
+<td>hr_work_entry</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">Инсталация</h2>
+<ol>
+<li>Копирайте модулите в addons директорията</li>
+<li>Update Apps List</li>
+<li>Модулите се инсталират <strong>автоматично</strong> (<code>auto_install=True</code>)</li>
+</ol>
+<h2 id="_4">Създадени индекси</h2>
+<h3 id="brin_index_accounting">brin_index_accounting</h3>
+<pre><code class="language-python"># account_move_line
+models.Index('date', type='brin')
+models.Index('create_date', type='brin')
+
+# account_move  
+models.Index('date', type='brin')
+models.Index('invoice_date', type='brin')
+models.Index('create_date', type='brin')
+
+# account_partial_reconcile
+models.Index('create_date', type='brin')
+
+# account_bank_statement_line
+models.Index('date', type='brin')
+
+# account_payment
+models.Index('date', type='brin')
+</code></pre>
+<h3 id="brin_index_stock">brin_index_stock</h3>
+<pre><code class="language-python"># stock_move_line
+models.Index('date', type='brin')
+models.Index('create_date', type='brin')
+
+# stock_move
+models.Index('date', type='brin')
+
+# stock_quant (FIFO/FEFO)
+models.Index('in_date', type='brin')
+
+# stock_lot (FEFO)
+models.Index('expiration_date', type='brin')
+
+# stock_picking
+models.Index('scheduled_date', type='brin')
+models.Index('date_done', type='brin')
+
+# stock_valuation_layer
+models.Index('create_date', type='brin')
+</code></pre>
+<h3 id="brin_index_mail">brin_index_mail</h3>
+<pre><code class="language-python"># mail_message (often the LARGEST table!)
+models.Index('date', type='brin')
+models.Index('create_date', type='brin')
+
+# mail_tracking_value
+models.Index('create_date', type='brin')
+
+# mail_notification
+models.Index('create_date', type='brin')
+
+# bus_bus
+models.Index('create_date', type='brin')
+
+# ir_attachment
+models.Index('create_date', type='brin')
+</code></pre>
+<h2 id="_5">Проверка на индекси</h2>
+<pre><code class="language-sql">-- Списък на BRIN индекси
+SELECT indexname, tablename 
+FROM pg_indexes 
+WHERE indexdef LIKE '%USING brin%'
+ORDER BY tablename;
+
+-- Размер на индексите
+SELECT indexname, pg_size_pretty(pg_relation_size(indexname::regclass))
+FROM pg_indexes 
+WHERE indexdef LIKE '%USING brin%';
+</code></pre>
+<h2 id="odoo-18-_sql_indexes">Предимства на Odoo 18 _sql_indexes</h2>
+<ol>
+<li><strong>Декларативен подход</strong> - индексите се дефинират в модела</li>
+<li><strong>Автоматично управление</strong> - Odoo управлява създаване/изтриване</li>
+<li><strong>Merge при наследяване</strong> - индексите се добавят към базовите</li>
+<li><strong>Консистентност</strong> - използва стандартния Odoo механизъм</li>
+</ol>
+<h2 id="_6">Съвместимост</h2>
+<ul>
+<li>Odoo: <strong>18.0</strong> (изисква новата _sql_indexes функционалност)</li>
+<li>PostgreSQL: 9.5+</li>
+</ul>
+<h2 id="_7">Лиценз</h2>
+<p>LGPL-3</p></div></div>
+</div>
+<footer>Generated from README + manifests · <a href="https://github.com/rosenvladimirov/brin_odoo">brin_odoo</a></footer>
+</body>
+</html>
