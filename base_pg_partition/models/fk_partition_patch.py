@@ -48,6 +48,37 @@ if not getattr(pg_sql, "_bpp_existing_tables_patch", False):
     _logger.info("base_pg_partition: patched sql.existing_tables to recognise "
                  "partitioned tables (relkind 'p')")
 
+# --------------------------------------------------------------------------- #
+# Patch 3: don't try to DROP NOT NULL on a primary-key column.
+# The partition key (e.g. account_move_line.date) is part of the composite PK
+# (id, date) and is set NOT NULL. Odoo's field.update_db_notnull sees the field
+# is not `required` and calls sql.drop_not_null → PG raises "column is in a
+# primary key". A PK column can never be nullable anyway, so skipping the drop
+# is correct (and only affects PK columns).
+# --------------------------------------------------------------------------- #
+if not getattr(pg_sql, "_bpp_drop_not_null_patch", False):
+    _orig_drop_not_null = pg_sql.drop_not_null
+
+    def _drop_not_null(cr, tablename, columnname):
+        cr.execute("""
+            SELECT 1
+              FROM pg_index i
+              JOIN pg_attribute a
+                ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+             WHERE i.indrelid = %s::regclass
+               AND i.indisprimary
+               AND a.attname = %s
+        """, (tablename, columnname))
+        if cr.fetchone():
+            _logger.debug(
+                "base_pg_partition: skip DROP NOT NULL on PK column %s.%s",
+                tablename, columnname)
+            return
+        return _orig_drop_not_null(cr, tablename, columnname)
+
+    pg_sql.drop_not_null = _drop_not_null
+    pg_sql._bpp_drop_not_null_patch = True
+
 _PARTITIONED_SQL = """
     SELECT c.relname
     FROM pg_class c

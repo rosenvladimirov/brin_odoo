@@ -31,6 +31,7 @@ Requirements:
         'views/pg_partition_views.xml',
     ],
     'post_init_hook': 'post_init_hook',
+    'post_load': 'post_load',
     'auto_install': False,
     'installable': True,
 }
