@@ -57,10 +57,5 @@ class StockPicking(models.Model):
     ]
 
 
-class StockValuationLayer(models.Model):
-    """BRIN index for stock_valuation_layer - grows fast with AVCO/FIFO."""
-    _inherit = 'stock.valuation.layer'
-
-    _sql_indexes = [
-        models.Index('create_date', type='brin'),
-    ]
+# NOTE: stock.valuation.layer was REMOVED in Odoo 19 (valuation refactored) —
+# the model no longer exists, so no BRIN class for it here.

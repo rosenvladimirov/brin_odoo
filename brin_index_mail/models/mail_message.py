@@ -28,13 +28,8 @@ class MailTrackingValue(models.Model):
     ]
 
 
-class MailNotification(models.Model):
-    """BRIN index for mail_notification."""
-    _inherit = 'mail.notification'
-
-    _sql_indexes = [
-        models.Index('create_date', type='brin'),
-    ]
+# NOTE: mail.notification has no create_date column in Odoo 19 (lightweight
+# model — only read_date); no BRIN class for it here.
 
 
 class BusBus(models.Model):

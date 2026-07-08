@@ -41,13 +41,9 @@ class AccountPartialReconcile(models.Model):
     ]
 
 
-class AccountBankStatementLine(models.Model):
-    """BRIN index for bank statement lines."""
-    _inherit = 'account.bank.statement.line'
-
-    _sql_indexes = [
-        models.Index('date', type='brin'),
-    ]
+# NOTE: account.bank.statement.line has no own `date` column in Odoo 19 — the
+# accounting date lives on the related account_move (already BRIN-indexed), so
+# no separate BRIN class here.
 
 
 class AccountPayment(models.Model):

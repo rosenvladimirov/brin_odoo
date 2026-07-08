@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BRIN Index - Stock',
-    'version': '18.0.1.0.0',
+    'version': '19.0.1.0.0',
     'category': 'Technical/Database',
     'summary': 'BRIN indexes for inventory tables using Odoo 18 _sql_indexes',
     'description': """
