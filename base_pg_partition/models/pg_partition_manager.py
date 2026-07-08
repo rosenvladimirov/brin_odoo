@@ -21,7 +21,10 @@ _logger = logging.getLogger(__name__)
 # the ORM re-creating them on upgrade. Started with account_move_line (the
 # general ledger); tables are empty on mec-19 so conversion is pure DDL.
 PARTITION_TARGETS = [
-    ('account_move_line', 'date', '1 year', 2018, True),   # set_not_null=True
+    ('account_move_line', 'date',        '1 year', 2018, True),   # date DB-nullable
+    ('stock_move',        'date',        '1 year', 2018, False),  # date NOT NULL
+    ('mrp_production',    'date_start',  '1 year', 2018, False),  # date_start NOT NULL
+    ('mail_message',      'create_date', '1 year', 2018, True),   # create_date nullable
 ]
 
 # DEFERRED registry — documented but NOT converted. The authoritative record of
@@ -177,9 +180,13 @@ class PgPartitionManager(models.TransientModel):
 
         # 2. Ensure the control column is NOT NULL (partition key requirement).
         if set_not_null:
+            # Backfill any NULLs before enforcing NOT NULL. Generic fallback so
+            # it works whether the control column is `date` (→ create_date) or
+            # `create_date` itself (→ write_date/now); every Odoo table has
+            # create_date/write_date.
             cr.execute(
-                'UPDATE "%s" SET "%s" = create_date WHERE "%s" IS NULL'
-                % (table, control, control))
+                'UPDATE "%s" SET "%s" = COALESCE(create_date, write_date, now()) '
+                'WHERE "%s" IS NULL' % (table, control, control))
             cr.execute(
                 'ALTER TABLE "%s" ALTER COLUMN "%s" SET NOT NULL'
                 % (table, control))
