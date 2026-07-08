@@ -31,20 +31,30 @@ PARTITION_TARGETS = []
 # (b) explicitly dropping DB-level FK integrity (Odoo ORM keeps app-level RI).
 #   (table, control_column, interval, control_nullable, inbound_fk_count, note)
 DEFERRED_TARGETS = [
-    ('account_move',      'date',          '1 year', False, 34,
-     'ledger header; control = accounting date; 34 inbound FK'),
-    ('account_move_line', 'date_maturity', '1 year', True,  20,
-     'general ledger; partition control = date_maturity (падеж, per Rosen). '
-     'date_maturity is NULLABLE and only set on payable/receivable lines → '
-     'needs a null/default-partition strategy + SET NOT NULL handling; 20 '
-     'inbound FK. BRIN indexes both date and create_date.'),
-    ('stock_move',        'date',          '1 year', False, 20,
+    ('account_move',      'date',           '1 year', False, 34,
+     'ledger header; control = accounting date (NOT NULL); 34 inbound FK'),
+    ('account_move_line', 'date',           '1 year', True,  20,
+     'general ledger; control = accounting date `date`. NOTE: date_maturity '
+     'was REJECTED as the key — the O19 core source analysis showed it is '
+     'populated ONLY on AR/AP payment_term lines + payment liquidity lines, '
+     'and is NULL on product/tax/section/note and every misc journal-entry '
+     'line (core itself uses COALESCE(date_maturity, date)). `date` is the '
+     'reliable column but is DB-nullable in v19 → needs SET NOT NULL '
+     '(backfill from move.date). 20 inbound FK. BRIN covers date + '
+     'create_date (+ date_maturity for aging queries; BRIN tolerates NULL).'),
+    ('stock_move',        'date',           '1 year', False, 20,
      '20 inbound FK incl. self-ref and l10n_bg_price_diff'),
-    ('stock_move_line',   'date',          '1 year', False,  9,
+    ('stock_move_line',   'date',           '1 year', False,  9,
      '9 inbound FK'),
-    ('mrp_production',    'date_start',    '1 year', False, 28,
-     '28 inbound FK'),
-    ('mail_message',      'create_date',   '1 year', True,  20,
+    ('mrp_production',    'date_start',     '1 year', False, 28,
+     'date_start is required+defaulted (NOT NULL); 28 inbound FK'),
+    ('mrp_workorder',     'production_date','1 year', True,  19,
+     'control = production_date (stored compute `date_start or '
+     'production_id.date_start`) → ALWAYS populated because the MO date_start '
+     'is required+defaulted; DB-nullable (compute-store) so SET NOT NULL '
+     'formalizes it WITHOUT data backfill. date_start/date_finished are '
+     'unsuitable (NULL until planned/started). 19 inbound FK.'),
+    ('mail_message',      'create_date',    '1 year', True,  20,
      'append-heavy; create_date NULLABLE + 20 inbound FK'),
 ]
 
