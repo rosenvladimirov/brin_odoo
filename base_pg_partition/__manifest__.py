@@ -1,6 +1,6 @@
 {
     'name': 'PostgreSQL Table Partitioning',
-    'version': '18.0.1.0.0',
+    'version': '19.0.1.0.0',
     'summary': 'Declarative PostgreSQL partitioning for large Odoo tables using pg_partman',
     'description': """
 PostgreSQL Table Partitioning

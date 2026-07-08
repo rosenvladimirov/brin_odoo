@@ -8,11 +8,52 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
-# Tables to partition: (table_name, control_column, interval, start_year)
-PARTITION_TARGETS = [
-    ('account_move_line', 'date', '1 year', 2018),
-    ('stock_move',        'date', '1 year', 2018),
+# ---------------------------------------------------------------------------
+# ACTIVE conversion targets — tables converted to pg_partman RANGE partitions
+# on module install. Each entry:
+#   (table, control_column, interval, start_year, set_not_null)
+#
+# INTENTIONALLY EMPTY (Odoo 19 analysis, mec-19, 2026-07). Every high-value
+# BRIN-indexed table (account_move, account_move_line, stock_move,
+# stock_move_line, mrp_production, mail_message) is FK-referenced, and native
+# PostgreSQL partitioning requires the partition key inside the primary key —
+# which breaks all inbound foreign keys (the children store only the parent id,
+# not the date). Decision: DEFER partitioning, rely on the BRIN indexes for
+# range pruning, and keep the pg_partman infrastructure ready. Populate this
+# list only for tables WITHOUT inbound FKs, or after the composite-FK migration
+# below has been carried out for a specific table.
+PARTITION_TARGETS = []
+
+# DEFERRED registry — documented but NOT converted. The authoritative record of
+# what WOULD be partitioned and why it is blocked, so rollout/maintenance tools
+# know the intent. Range-partitioning any of these first requires either
+# (a) adding the control column to the PK AND to every inbound-FK child, or
+# (b) explicitly dropping DB-level FK integrity (Odoo ORM keeps app-level RI).
+#   (table, control_column, interval, control_nullable, inbound_fk_count, note)
+DEFERRED_TARGETS = [
+    ('account_move',      'date',          '1 year', False, 34,
+     'ledger header; control = accounting date; 34 inbound FK'),
+    ('account_move_line', 'date_maturity', '1 year', True,  20,
+     'general ledger; partition control = date_maturity (падеж, per Rosen). '
+     'date_maturity is NULLABLE and only set on payable/receivable lines → '
+     'needs a null/default-partition strategy + SET NOT NULL handling; 20 '
+     'inbound FK. BRIN indexes both date and create_date.'),
+    ('stock_move',        'date',          '1 year', False, 20,
+     '20 inbound FK incl. self-ref and l10n_bg_price_diff'),
+    ('stock_move_line',   'date',          '1 year', False,  9,
+     '9 inbound FK'),
+    ('mrp_production',    'date_start',    '1 year', False, 28,
+     '28 inbound FK'),
+    ('mail_message',      'create_date',   '1 year', True,  20,
+     'append-heavy; create_date NULLABLE + 20 inbound FK'),
 ]
+
+# Handled by BRIN only — never range-partition. stock_quant is current-state
+# (in_date mutates → cross-partition row churn on UPDATE); stock_lot is master
+# data (no NOT NULL date; looked up by id/name, not date range → zero pruning
+# benefit). crm_lead / pos_order* are not installed; stock_valuation_layer was
+# removed in Odoo 19.
+BRIN_ONLY = ['stock_quant', 'stock_lot']
 
 
 class PgPartitionManager(models.TransientModel):
@@ -24,13 +65,25 @@ class PgPartitionManager(models.TransientModel):
     # ------------------------------------------------------------------ #
 
     def _setup_partman(self):
-        """Called from post_init_hook. Installs extension and partitions."""
+        """Called from post_init_hook. Installs the extension and converts any
+        ACTIVE targets. With no active targets the module only makes the
+        pg_partman infrastructure available (schema + extension + maintenance
+        cron) and logs the deferred registry — partitioning stays deferred."""
         self._install_pg_partman()
-        for table, control, interval, start_year in PARTITION_TARGETS:
+        if not PARTITION_TARGETS:
+            _logger.info(
+                'base_pg_partition: no ACTIVE partition targets — partitioning '
+                'is DEFERRED (BRIN indexes handle range pruning). pg_partman '
+                'infrastructure is ready. Deferred registry: %s',
+                ', '.join(t[0] for t in DEFERRED_TARGETS),
+            )
+            return
+        for table, control, interval, start_year, set_not_null in PARTITION_TARGETS:
             if self._table_exists(table):
                 if not self._is_partitioned(table):
                     _logger.info('Partitioning table: %s', table)
-                    self._convert_to_partitioned(table, control, interval, start_year)
+                    self._convert_to_partitioned(
+                        table, control, interval, start_year, set_not_null)
                 else:
                     _logger.info('Table already partitioned: %s', table)
                     self._run_maintenance(table)
@@ -46,8 +99,11 @@ class PgPartitionManager(models.TransientModel):
             except Exception as e:
                 raise UserError(_(
                     'Cannot install pg_partman extension.\n'
-                    'Make sure postgresql-16-partman is installed on the server.\n'
-                    'Error: %s'
+                    'The pg_partman extension must be present in the PostgreSQL '
+                    'server image (e.g. postgresql-17-partman on a Debian base, '
+                    'or a custom CloudNativePG operand image that bundles '
+                    'pg_partman) and shared_preload_libraries must include '
+                    "'pg_partman_bgw'.\nError: %s"
                 ) % str(e))
         else:
             _logger.info('pg_partman already installed')
@@ -56,29 +112,68 @@ class PgPartitionManager(models.TransientModel):
     #  Conversion                                                          #
     # ------------------------------------------------------------------ #
 
-    def _convert_to_partitioned(self, table, control, interval, start_year):
+    def _inbound_fk_count(self, table):
+        """Number of foreign keys in OTHER tables that reference *table*.
+        A partitioned table cannot keep these unless the control column is
+        folded into its PK and every child references the composite key."""
+        self.env.cr.execute(
+            "SELECT count(*) FROM pg_constraint "
+            "WHERE contype = 'f' AND confrelid = %s::regclass",
+            ('public.%s' % table,),
+        )
+        return self.env.cr.fetchone()[0]
+
+    def _convert_to_partitioned(self, table, control, interval, start_year,
+                                set_not_null=False, force_fk=False):
         """
         Convert existing table to partitioned using pg_partman.
 
         Sequence:
-        1. Rename original table to _nonpartitioned (keeps data safe)
-        2. Create new empty table with PARTITION BY RANGE skeleton
-        3. Call partman.create_parent() — partman creates all partitions
-           from start_year to today + default partition automatically
-        4. Copy data in batches from backup table into partitioned table
-           (partman routes each row to the correct partition)
-        5. Recreate indexes and sequences on parent table
+        1. (guard) refuse if inbound FKs exist unless force_fk
+        2. (optional) SET NOT NULL on the control column (partition key must be
+           NOT NULL; Odoo populates it at ORM level but the DB column may allow
+           NULL — e.g. account_move_line.date / mail_message.create_date in v19)
+        3. Rename original table to _nonpartitioned (keeps data safe)
+        4. Create new empty table with PARTITION BY RANGE skeleton
+        5. partman.create_parent() — creates partitions from start_year + default
+        6. Copy data in batches (partman routes each row to its partition)
+        7. Update partman config
 
-        Needs maintenance window on production.
-        On 500K rows expect ~3-5 minutes.
+        Needs maintenance window on production. On 500K rows expect ~3-5 minutes.
         """
         cr = self.env.cr
+
+        # 1. SAFETY GUARD — native partitioning needs the control column inside
+        #    the PK, which breaks every inbound FK. Do not silently drop referen-
+        #    tial integrity: refuse unless the caller has handled the composite-FK
+        #    migration and passes force_fk=True.
+        inbound = self._inbound_fk_count(table)
+        if inbound and not force_fk:
+            raise UserError(_(
+                'Refusing to partition "%s": it has %d inbound foreign key(s). '
+                'Native PostgreSQL range-partitioning requires the partition key '
+                '(%s) inside the primary key, which breaks every FK referencing '
+                'this table. Perform the composite-FK migration first (add %s to '
+                'the PK and to each child FK), or pass force_fk=True to drop '
+                'DB-level FK integrity intentionally (Odoo keeps app-level RI).'
+            ) % (table, inbound, control, control))
+
         backup_table = '%s_nonpartitioned' % table
         start = '%d-01-01' % start_year
 
         _logger.info('Converting %s to partitioned table...', table)
 
-        # 1. Rename original — data is safe here
+        # 2. Ensure the control column is NOT NULL (partition key requirement).
+        if set_not_null:
+            cr.execute(
+                'UPDATE "%s" SET "%s" = create_date WHERE "%s" IS NULL'
+                % (table, control, control))
+            cr.execute(
+                'ALTER TABLE "%s" ALTER COLUMN "%s" SET NOT NULL'
+                % (table, control))
+            _logger.info('  SET NOT NULL on %s.%s', table, control)
+
+        # 3. Rename original — data is safe here
         cr.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table, backup_table))
         _logger.info('  Renamed %s → %s', table, backup_table)
 
