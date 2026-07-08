@@ -13,16 +13,16 @@ _logger = logging.getLogger(__name__)
 # on module install. Each entry:
 #   (table, control_column, interval, start_year, set_not_null)
 #
-# INTENTIONALLY EMPTY (Odoo 19 analysis, mec-19, 2026-07). Every high-value
-# BRIN-indexed table (account_move, account_move_line, stock_move,
-# stock_move_line, mrp_production, mail_message) is FK-referenced, and native
-# PostgreSQL partitioning requires the partition key inside the primary key —
-# which breaks all inbound foreign keys (the children store only the parent id,
-# not the date). Decision: DEFER partitioning, rely on the BRIN indexes for
-# range pruning, and keep the pg_partman infrastructure ready. Populate this
-# list only for tables WITHOUT inbound FKs, or after the composite-FK migration
-# below has been carried out for a specific table.
-PARTITION_TARGETS = []
+# ACTIVE targets use the DROP-FK strategy (decision Rosen, 2026-07-08): every
+# high-value BRIN table is FK-referenced, and native PG partitioning needs the
+# partition key in the PK (breaking id-only inbound FKs). Rather than mirror the
+# control column into dozens of child tables, we DROP the DB-level inbound FK
+# constraints (force_fk) — Odoo keeps app-level RI, and fk_partition_patch stops
+# the ORM re-creating them on upgrade. Started with account_move_line (the
+# general ledger); tables are empty on mec-19 so conversion is pure DDL.
+PARTITION_TARGETS = [
+    ('account_move_line', 'date', '1 year', 2018, True),   # set_not_null=True
+]
 
 # DEFERRED registry — documented but NOT converted. The authoritative record of
 # what WOULD be partitioned and why it is blocked, so rollout/maintenance tools
@@ -92,8 +92,10 @@ class PgPartitionManager(models.TransientModel):
             if self._table_exists(table):
                 if not self._is_partitioned(table):
                     _logger.info('Partitioning table: %s', table)
+                    # ACTIVE targets use the drop-FK strategy (force_fk=True).
                     self._convert_to_partitioned(
-                        table, control, interval, start_year, set_not_null)
+                        table, control, interval, start_year,
+                        set_not_null, force_fk=True)
                 else:
                     _logger.info('Table already partitioned: %s', table)
                     self._run_maintenance(table)
@@ -183,6 +185,22 @@ class PgPartitionManager(models.TransientModel):
                 % (table, control))
             _logger.info('  SET NOT NULL on %s.%s', table, control)
 
+        # 2b. force_fk: drop DB-level inbound FK constraints. A partitioned
+        #     table cannot be an id-only FK target (no unique on id alone). The
+        #     Odoo ORM keeps app-level referential integrity, and
+        #     fk_partition_patch stops Odoo re-creating these FKs on upgrade.
+        if force_fk and inbound:
+            cr.execute("""
+                SELECT conrelid::regclass::text, conname
+                FROM pg_constraint
+                WHERE contype = 'f' AND confrelid = %s::regclass
+            """, ('public.%s' % table,))
+            for child_table, conname in cr.fetchall():
+                cr.execute(
+                    'ALTER TABLE %s DROP CONSTRAINT "%s"' % (child_table, conname))
+            _logger.info(
+                '  dropped %d inbound FK constraint(s) targeting %s', inbound, table)
+
         # 3. Rename original — data is safe here
         cr.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table, backup_table))
         _logger.info('  Renamed %s → %s', table, backup_table)
@@ -261,7 +279,12 @@ class PgPartitionManager(models.TransientModel):
                 col_name, type_str, null_str, default_str
             ))
 
-        return 'CREATE TABLE "%s" (\n%s\n) PARTITION BY RANGE (%s)' % (
+        # Composite PK (id, control): PostgreSQL requires the partition key in
+        # the primary key. `id` keeps its sequence default so it stays globally
+        # unique in practice; the ORM addresses rows by id as before.
+        col_defs.append('    PRIMARY KEY ("id", "%s")' % control)
+
+        return 'CREATE TABLE "%s" (\n%s\n) PARTITION BY RANGE ("%s")' % (
             table, ',\n'.join(col_defs), control
         )
 

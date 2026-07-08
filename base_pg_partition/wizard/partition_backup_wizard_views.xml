@@ -15,7 +15,7 @@
                     </group>
                     <group string="Backup">
                         <field name="output_dir"/>
-                        <field name="result_path" attrs="{'invisible': [('state','=','draft')]}"/>
+                        <field name="result_path" invisible="state == 'draft'"/>
                     </group>
                 </group>
                 <footer>
@@ -23,7 +23,7 @@
                             string="Run pg_dump"
                             type="object"
                             class="btn-primary"
-                            attrs="{'invisible': [('state','=','done')]}"/>
+                            invisible="state == 'done'"/>
                     <button name="action_run_maintenance"
                             string="Run Maintenance (create next partition)"
                             type="object"
