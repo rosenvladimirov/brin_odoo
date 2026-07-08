@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-BRIN Index definitions for HR Attendance using Odoo 18 _sql_indexes.
+BRIN Index definitions for HR Attendance using Odoo 19 models.Index (BRIN).
 """
 from odoo import models
 
@@ -9,7 +9,5 @@ class HrAttendance(models.Model):
     """BRIN indexes for hr_attendance."""
     _inherit = 'hr.attendance'
 
-    _sql_indexes = [
-        models.Index('check_in', type='brin'),
-        models.Index('check_out', type='brin'),
-    ]
+    _brin_check_in = models.Index("USING brin (check_in)")
+    _brin_check_out = models.Index("USING brin (check_out)")

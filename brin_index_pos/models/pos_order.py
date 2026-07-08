@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-BRIN Index definitions for Point of Sale using Odoo 18 _sql_indexes.
+BRIN Index definitions for Point of Sale using Odoo 19 models.Index (BRIN).
 
 POS has HIGH WRITE VOLUME - indexes should be optimized for this.
 """
@@ -11,34 +11,26 @@ class PosOrder(models.Model):
     """BRIN indexes for pos_order - high write volume."""
     _inherit = 'pos.order'
 
-    _sql_indexes = [
-        models.Index('date_order', type='brin'),
-        models.Index('create_date', type='brin'),
-    ]
+    _brin_date_order = models.Index("USING brin (date_order)")
+    _brin_create_date = models.Index("USING brin (create_date)")
 
 
 class PosOrderLine(models.Model):
     """BRIN index for pos_order_line - typically 3-5x more rows than orders."""
     _inherit = 'pos.order.line'
 
-    _sql_indexes = [
-        models.Index('create_date', type='brin'),
-    ]
+    _brin_create_date = models.Index("USING brin (create_date)")
 
 
 class PosPayment(models.Model):
     """BRIN index for pos_payment."""
     _inherit = 'pos.payment'
 
-    _sql_indexes = [
-        models.Index('create_date', type='brin'),
-    ]
+    _brin_create_date = models.Index("USING brin (create_date)")
 
 
 class PosSession(models.Model):
     """BRIN index for pos_session."""
     _inherit = 'pos.session'
 
-    _sql_indexes = [
-        models.Index('start_at', type='brin'),
-    ]
+    _brin_start_at = models.Index("USING brin (start_at)")
