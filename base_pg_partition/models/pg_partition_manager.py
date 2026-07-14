@@ -25,6 +25,7 @@ PARTITION_TARGETS = [
     ('stock_move',        'date',        '1 year', 2018, False),  # date NOT NULL
     ('mrp_production',    'date_start',  '1 year', 2018, False),  # date_start NOT NULL
     ('mail_message',      'create_date', '1 year', 2018, True),   # create_date nullable
+    ('cfx_placement',     'create_date', '1 year', 2026, True),   # CFX SMT placements; 0 inbound FK; append-only, data from 2026
 ]
 
 # DEFERRED registry — documented but NOT converted. The authoritative record of
