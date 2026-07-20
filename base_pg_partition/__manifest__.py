@@ -21,7 +21,7 @@ Requirements:
 """,
     'author': 'Rosen Vladimirov',
     'website': 'https://github.com/rosenvladimirov/brin_odoo',
-    'license': 'AGPL-3',
+    'license': 'LGPL-3',
     'category': 'Technical',
     'depends': ['base', 'account'],
     'data': [
