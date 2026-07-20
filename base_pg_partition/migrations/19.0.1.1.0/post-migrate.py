@@ -1,5 +1,5 @@
 # Copyright 2024-2026 Rosen Vladimirov
-# License AGPL-3.0-or-later (dual — see LICENSE-COMMERCIAL.md)
+# License LGPL-3.0-or-later (see LICENSE)
 """Re-run partition setup on upgrade.
 
 post_init_hook only fires on install; when PARTITION_TARGETS gains new tables
