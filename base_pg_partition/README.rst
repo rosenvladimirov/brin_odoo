@@ -56,4 +56,4 @@ Manual trigger::
 
 Contributors
 ------------
-- Rosen Vladimirov <rosenv@bl-consulting.com>
+- Rosen Vladimirov <vladimirov.rosen@odoo-shell.dev>
