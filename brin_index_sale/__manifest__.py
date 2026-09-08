@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BRIN Index - Sales',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for sales tables using Odoo 18 _sql_indexes',
+    'summary': 'BRIN indexes for sales tables via sql.create_index',
     'description': """
 BRIN Indexes for Sales (Odoo 18)
 ================================
 
-Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
+Creates BRIN indexes in init() via sql.create_index on:
 - sale_order (date_order, create_date)
 - sale_order_line (create_date)
 

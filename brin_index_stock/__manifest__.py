@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BRIN Index - Stock',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for inventory tables using Odoo 18 _sql_indexes',
+    'summary': 'BRIN indexes for inventory tables via sql.create_index',
     'description': """
 BRIN Indexes for Stock/Inventory (Odoo 18)
 ==========================================
 
-Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
+Creates BRIN indexes in init() via sql.create_index on:
 - stock_move_line (date, create_date)
 - stock_move (date)
 - stock_quant (in_date) - Critical for FIFO/FEFO
@@ -18,7 +18,9 @@ Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
     """,
     'author': 'Custom',
     'license': 'LGPL-3',
-    'depends': ['stock'],
+    # stock_account носи stock.valuation.layer, който модулът индексира —
+    # без тази зависимост _inherit пада с "Model does not exist in registry".
+    'depends': ['stock', 'stock_account'],
     'data': [],
     'auto_install': True,
     'installable': True,

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BRIN Index - Point of Sale',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for POS tables using Odoo 18 _sql_indexes',
+    'summary': 'BRIN indexes for POS tables via sql.create_index',
     'description': """
 BRIN Indexes for Point of Sale (Odoo 18)
 ========================================
 
-Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
+Creates BRIN indexes in init() via sql.create_index on:
 - pos_order (date_order)
 - pos_order_line (create_date)
 - pos_payment (create_date)

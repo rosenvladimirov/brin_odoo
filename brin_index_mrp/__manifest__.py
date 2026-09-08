@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BRIN Index - Manufacturing',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for manufacturing tables using Odoo 18 _sql_indexes',
+    'summary': 'BRIN indexes for manufacturing tables via sql.create_index',
     'description': """
 BRIN Indexes for Manufacturing (Odoo 18)
 ========================================
 
-Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
+Creates BRIN indexes in init() via sql.create_index on:
 - mrp_production (date_start, date_finished)
 - mrp_workorder (date_start, date_finished)
 - mrp_workcenter_productivity (date_start, date_end)

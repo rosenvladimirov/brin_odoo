@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BRIN Index - Purchase',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'category': 'Technical/Database',
-    'summary': 'BRIN indexes for purchasing tables using Odoo 18 _sql_indexes',
+    'summary': 'BRIN indexes for purchasing tables via sql.create_index',
     'description': """
 BRIN Indexes for Purchasing (Odoo 18)
 =====================================
 
-Uses the new Odoo 18 _sql_indexes mechanism to create BRIN indexes on:
+Creates BRIN indexes in init() via sql.create_index on:
 - purchase_order (date_order, date_approve)
 - purchase_order_line (date_planned, create_date)
 
